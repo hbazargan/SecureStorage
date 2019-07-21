@@ -1,5 +1,5 @@
-This module is based on Hawk with some changes. The default encryption was replaced by a new encryption method which is based on KeyStore.
-Also, the new encryption method is based on SecretsKeeper.
+This module is based on https://github.com/orhanobut/hawk with some changes. The default encryption was replaced by a new encryption method which is based on KeyStore.
+Also, the new encryption method is based on https://github.com/temyco/security-workshop-sample.
 
 The below diagram illustrates steps of data storing which uses in this module.
 
