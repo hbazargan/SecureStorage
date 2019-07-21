@@ -2,45 +2,46 @@ package ir.hbazargan.securestore;
 
 import android.content.Context;
 
-import ir.hbazargan.securestore.encryption.AlgorithmType;
+import com.google.gson.Gson;
+
+import ir.hbazargan.securestore.contracts.ConverterModuleContract;
+import ir.hbazargan.securestore.contracts.EncryptionModuleContract;
+import ir.hbazargan.securestore.contracts.SerializerModuleContract;
+import ir.hbazargan.securestore.contracts.StorageModuleContract;
+import ir.hbazargan.securestore.modules.ConverterModuleImplementation;
+import ir.hbazargan.securestore.modules.encryption.NoEncryptionModuleImplementation;
+import ir.hbazargan.securestore.modules.encryption.cipher.AlgorithmType;
+import ir.hbazargan.securestore.modules.encryption.EncryptionException;
+import ir.hbazargan.securestore.modules.encryption.EncryptionModuleImplementation;
+import ir.hbazargan.securestore.contracts.LogInterceptorModuleContract;
+import ir.hbazargan.securestore.modules.GsonParserModuleImplementation;
+import ir.hbazargan.securestore.contracts.ParserModuleContract;
+import ir.hbazargan.securestore.modules.SerializerModuleImplementation;
+import ir.hbazargan.securestore.modules.SharedPreferencesStorageModuleImplementation;
 
 /**
  * Secure, simple key-value storage for Android.
  */
-public final class SecureStorage {
+public final class SecureStorage implements SecureStorageContract {
 
   private SecureStorage() {
     // no instance
   }
 
-  static SecureStorageFacade secureStorageFacade = new SecureStorageFacade.EmptySecureStorageFacade();
+  private SecureStorageContract secureStorageContract = new SecureStorageContract.EmptySecureStorageContract();
 
   /**
    * This will init the hawk without password protection.
    *
    * @param context is used to instantiate context based objects.
    *                ApplicationContext will be used
-   */
-  public static SecureStorageBuilder init(Context context) {
-    return init(context, AlgorithmType.SYMMETRIC);
-  }
-
-  /**
-   * This will init the hawk without password protection.
-   *
-   * @param context is used to instantiate context based objects.
-   *                ApplicationContext will be used
-   * @param algorithmType is used to define encryption algorithm.
+   * @param algorithmType is used to define encryptionModuleContract algorithm.
    *
    */
-  public static SecureStorageBuilder init(Context context, AlgorithmType algorithmType) {
+  private SecureStorage(Context context, AlgorithmType algorithmType, SecureStorageBuilder secureStorageBuilder) {
     Utils.checkNull("Context", context);
-    secureStorageFacade = null;
-    return new SecureStorageBuilder(context, algorithmType);
-  }
-
-  static void build(SecureStorageBuilder secureStorageBuilder) {
-    secureStorageFacade = new DefaultSecureStorageFacade(secureStorageBuilder);
+    secureStorageContract = null;
+    secureStorageContract = new DefaultSecureStorageContract(secureStorageBuilder);
   }
 
   /**
@@ -50,8 +51,9 @@ public final class SecureStorage {
    * @param value is the data that is going to be encrypted and persisted
    * @return true if the operation is successful. Any failure in any step will return false
    */
-  public static <T> boolean put(String key, T value) {
-    return secureStorageFacade.put(key, value);
+  @Override
+  public <T> boolean put(String key, T value) {
+    return secureStorageContract.put(key, value);
   }
 
   /**
@@ -62,8 +64,9 @@ public final class SecureStorage {
    * @param key is used to get the persisted data
    * @return the original object
    */
-  public static <T> T get(String key) {
-    return secureStorageFacade.get(key);
+  @Override
+  public <T> T get(String key) {
+    return secureStorageContract.get(key);
   }
 
   /**
@@ -73,8 +76,9 @@ public final class SecureStorage {
    * @param defaultValue will be return if the response is null
    * @return the saved object
    */
-  public static <T> T get(String key, T defaultValue) {
-    return secureStorageFacade.get(key, defaultValue);
+  @Override
+  public <T> T get(String key, T defaultValue) {
+    return secureStorageContract.get(key, defaultValue);
   }
 
   /**
@@ -82,8 +86,9 @@ public final class SecureStorage {
    *
    * @return the size
    */
-  public static long count() {
-    return secureStorageFacade.count();
+  @Override
+  public long count() {
+    return secureStorageContract.count();
   }
 
   /**
@@ -92,8 +97,9 @@ public final class SecureStorage {
    *
    * @return true if deleteAll is successful
    */
-  public static boolean deleteAll() {
-    return secureStorageFacade.deleteAll();
+  @Override
+  public boolean deleteAll() {
+    return secureStorageContract.deleteAll();
   }
 
   /**
@@ -102,8 +108,9 @@ public final class SecureStorage {
    * @param key is used for removing related data from storage
    * @return true if delete is successful
    */
-  public static boolean delete(String key) {
-    return secureStorageFacade.delete(key);
+  @Override
+  public boolean delete(String key) {
+    return secureStorageContract.delete(key);
   }
 
   /**
@@ -112,8 +119,9 @@ public final class SecureStorage {
    * @param key is the key to check
    * @return true if it exists in the storage
    */
-  public static boolean contains(String key) {
-    return secureStorageFacade.contains(key);
+  @Override
+  public boolean contains(String key) {
+    return secureStorageContract.contains(key);
   }
 
   /**
@@ -121,12 +129,137 @@ public final class SecureStorage {
    *
    * @return true if correctly initialised and built. False otherwise.
    */
-  public static boolean isBuilt() {
-    return secureStorageFacade.isBuilt();
+  @Override
+  public boolean isBuilt() {
+    return secureStorageContract.isBuilt();
   }
 
-  public static void destroy() {
-    secureStorageFacade.destroy();
+  @Override
+  public void destroy() {
+    secureStorageContract.destroy();
   }
 
+  public static final class SecureStorageBuilder {
+
+    /**
+     * NEVER ever change STORAGE_TAG_DO_NOT_CHANGE and TAG_INFO.
+     * It will break backward compatibility in terms of keeping previous data
+     */
+    private static final String STORAGE_TAG_DO_NOT_CHANGE = "SecureStorage1";
+    private final AlgorithmType algorithmType;
+
+    private Context context;
+    private AlgorithmType algorithm;
+    private StorageModuleContract cryptoStorageModuleContract;
+    private ConverterModuleContract converterModuleContract;
+    private ParserModuleContract parserModuleContract;
+    private EncryptionModuleContract encryptionModuleContract;
+    private SerializerModuleContract serializerModuleContract;
+    private LogInterceptorModuleContract logInterceptorModuleContract;
+
+    public SecureStorageBuilder(Context context) {
+      this(context, AlgorithmType.SYMMETRIC);
+    }
+
+    public SecureStorageBuilder(Context context, AlgorithmType algorithmType) {
+      Utils.checkNull("Context", context);
+
+      this.context = context.getApplicationContext();
+      this.algorithmType = algorithmType;
+    }
+
+    public SecureStorageBuilder setStorage(StorageModuleContract storageModuleContract) {
+      this.cryptoStorageModuleContract = storageModuleContract;
+      return this;
+    }
+
+    public SecureStorageBuilder setAlgorithm(AlgorithmType algorithm) {
+      this.algorithm = algorithm;
+      return this;
+    }
+
+    public SecureStorageBuilder setParserModuleContract(ParserModuleContract parserModuleContract) {
+      this.parserModuleContract = parserModuleContract;
+      return this;
+    }
+
+    public SecureStorageBuilder setSerializerModuleContract(SerializerModuleContract serializerModuleContract) {
+      this.serializerModuleContract = serializerModuleContract;
+      return this;
+    }
+
+    public SecureStorageBuilder setLogInterceptorModuleContract(LogInterceptorModuleContract logInterceptorModuleContract) {
+      this.logInterceptorModuleContract = logInterceptorModuleContract;
+      return this;
+    }
+
+    public SecureStorageBuilder setConverterModuleContract(ConverterModuleContract converterModuleContract) {
+      this.converterModuleContract = converterModuleContract;
+      return this;
+    }
+
+    public SecureStorageBuilder setEncryptionModuleContract(EncryptionModuleContract encryptionModuleContract) {
+      this.encryptionModuleContract = encryptionModuleContract;
+      return this;
+    }
+
+    LogInterceptorModuleContract getLogInterceptorModuleContract() {
+      if (logInterceptorModuleContract == null) {
+        logInterceptorModuleContract = new LogInterceptorModuleContract() {
+          @Override
+          public void onLog(String message) {
+            //empty implementation
+          }
+        };
+      }
+      return logInterceptorModuleContract;
+    }
+
+    StorageModuleContract getStorage() {
+      if (cryptoStorageModuleContract == null) {
+        cryptoStorageModuleContract = new SharedPreferencesStorageModuleImplementation(context, STORAGE_TAG_DO_NOT_CHANGE);
+      }
+      return cryptoStorageModuleContract;
+    }
+
+    ConverterModuleContract getConverterModuleContract() {
+      if (converterModuleContract == null) {
+        converterModuleContract = new ConverterModuleImplementation(getParserModuleContract());
+      }
+      return converterModuleContract;
+    }
+
+    ParserModuleContract getParserModuleContract() {
+      if (parserModuleContract == null) {
+        parserModuleContract = new GsonParserModuleImplementation(new Gson());
+      }
+      return parserModuleContract;
+    }
+
+    EncryptionModuleContract getEncryptionModuleContract() {
+      if (encryptionModuleContract == null) {
+        try
+        {
+          encryptionModuleContract = (EncryptionModuleContract) new EncryptionModuleImplementation.Builder(context,algorithmType).build();
+        }
+        catch (EncryptionException e)
+        {
+          e.printStackTrace();
+          encryptionModuleContract = new NoEncryptionModuleImplementation();
+        }
+      }
+      return encryptionModuleContract;
+    }
+
+    SerializerModuleContract getSerializerModuleContract() {
+      if (serializerModuleContract == null) {
+        serializerModuleContract = new SerializerModuleImplementation(getLogInterceptorModuleContract());
+      }
+      return serializerModuleContract;
+    }
+
+    public SecureStorageContract build() {
+      return new SecureStorage(context, algorithmType, this);
+    }
+  }
 }
