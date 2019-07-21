@@ -12,7 +12,7 @@ import ir.hbazargan.securestore.modules.ConverterModuleImplementation;
 import ir.hbazargan.securestore.modules.encryption.NoEncryptionModuleImplementation;
 import ir.hbazargan.securestore.modules.encryption.cipher.AlgorithmType;
 import ir.hbazargan.securestore.modules.encryption.EncryptionException;
-import ir.hbazargan.securestore.modules.encryption.EncryptionModuleImplementation;
+import ir.hbazargan.securestore.modules.encryption.KeyStoreEncryptionModuleImplementation;
 import ir.hbazargan.securestore.contracts.LogInterceptorModuleContract;
 import ir.hbazargan.securestore.modules.GsonParserModuleImplementation;
 import ir.hbazargan.securestore.contracts.ParserModuleContract;
@@ -240,7 +240,7 @@ public final class SecureStorage implements SecureStorageContract {
       if (encryptionModuleContract == null) {
         try
         {
-          encryptionModuleContract = (EncryptionModuleContract) new EncryptionModuleImplementation.Builder(context,algorithmType).build();
+          encryptionModuleContract = (EncryptionModuleContract) new KeyStoreEncryptionModuleImplementation.Builder(context,algorithmType).build();
         }
         catch (EncryptionException e)
         {

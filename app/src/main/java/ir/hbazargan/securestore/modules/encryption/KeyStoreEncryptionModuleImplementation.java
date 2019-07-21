@@ -10,7 +10,7 @@ import ir.hbazargan.securestore.modules.encryption.cipher.CipherContract;
 import ir.hbazargan.securestore.modules.encryption.keystore.KeyStoreImplementation;
 import ir.hbazargan.securestore.modules.encryption.keystore.KeyStoreContract;
 
-public final class EncryptionModuleImplementation implements EncryptionContract, EncryptionModuleContract {
+public final class KeyStoreEncryptionModuleImplementation implements EncryptionContract, EncryptionModuleContract {
 
     @Override
     public boolean init()
@@ -32,7 +32,7 @@ public final class EncryptionModuleImplementation implements EncryptionContract,
     private CipherContract cipherContract;
     private KeyStoreContract keyStoreContract;
 
-    private EncryptionModuleImplementation(Context context, AlgorithmType algorithmType) throws EncryptionException
+    private KeyStoreEncryptionModuleImplementation(Context context, AlgorithmType algorithmType) throws EncryptionException
     {
         keyStoreContract = new KeyStoreImplementation.Builder(context).build();
         cipherContract = CipherFactory.create(keyStoreContract, algorithmType);
@@ -65,7 +65,7 @@ public final class EncryptionModuleImplementation implements EncryptionContract,
         {
             if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2)
             {
-                return new EncryptionModuleImplementation(context, algorithmType);
+                return new KeyStoreEncryptionModuleImplementation(context, algorithmType);
             }else{
                 throw new EncryptionException();
             }
