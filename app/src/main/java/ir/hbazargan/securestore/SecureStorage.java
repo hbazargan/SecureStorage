@@ -146,7 +146,6 @@ public final class SecureStorage implements SecureStorageContract {
      * It will break backward compatibility in terms of keeping previous data
      */
     private static final String STORAGE_TAG_DO_NOT_CHANGE = "SecureStorage1";
-    private final AlgorithmType algorithmType;
 
     private Context context;
     private AlgorithmType algorithm;
@@ -165,7 +164,7 @@ public final class SecureStorage implements SecureStorageContract {
       Utils.checkNull("Context", context);
 
       this.context = context.getApplicationContext();
-      this.algorithmType = algorithmType;
+      this.algorithm = algorithmType;
     }
 
     public SecureStorageBuilder setStorage(StorageModuleContract storageModuleContract) {
@@ -240,7 +239,7 @@ public final class SecureStorage implements SecureStorageContract {
       if (encryptionModuleContract == null) {
         try
         {
-          encryptionModuleContract = (EncryptionModuleContract) new KeyStoreEncryptionModuleImplementation.Builder(context,algorithmType).build();
+          encryptionModuleContract = (EncryptionModuleContract) new KeyStoreEncryptionModuleImplementation.Builder(context,algorithm).build();
         }
         catch (EncryptionException e)
         {
@@ -259,7 +258,7 @@ public final class SecureStorage implements SecureStorageContract {
     }
 
     public SecureStorageContract build() {
-      return new SecureStorage(context, algorithmType, this);
+      return new SecureStorage(context, algorithm, this);
     }
   }
 }
