@@ -56,6 +56,14 @@ secureStorage.contains("key");
 ```java
 secureStorage.delete("key");
 ```
-##Note
+## Note
+
+### SDK limits
 The encryption module is based on AndroidKeyStore, thus it doesn't supported APIs below 18 because there is no infrastructure for AndroidKeyStore.
 In this situation(APIs below 18), the encryption module only (encrypt/decrypt)s data based on Base64.
+
+### Encryption/Decryption algorithms
+By default, AES and RSA are used to encrypt/decrypt data.
+
+### Encryption/Decryption size limit
+There is no limit to encrypt/decrypt by Symmetric keys. If you want to use Asymmetric keys, the data size limit will be 245 bytes.
